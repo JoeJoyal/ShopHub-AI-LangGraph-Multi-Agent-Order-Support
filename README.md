@@ -30,21 +30,6 @@ returned to the user.
 
 ![architecture](./images/ShopHub%20Multi-Agent%20Architecture%20Diagram.png)
 
-<!-- ``` mermaid
-flowchart TD
-    U[Staff User] -->|Chat request + bearer token| O[Main Orchestrator<br/>FastAPI :8000]
-    O -->|Verify identity| S[Store API<br/>FastAPI :8001]
-    O -->|JSON-RPC tools/call + same bearer token| A[Orders Agent<br/>FastAPI :8002]
-    A -->|REST request + same bearer token| S
-    S --> AUTH[Authenticate token]
-    AUTH --> RBAC[Check role and permission]
-    RBAC --> TENANT[Check merchant ownership]
-    TENANT --> DATA[(In-memory sample orders)]
-    DATA --> S
-    S --> A
-    A --> O
-    O --> U
-``` -->
 
 ### Components
 
