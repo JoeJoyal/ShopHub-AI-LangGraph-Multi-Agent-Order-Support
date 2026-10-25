@@ -183,3 +183,20 @@ def get_current_merchant(authorization: Optional[str]) -> dict:
 
     # Return a copy so callers cannot modify the token dictionary.
     return identity.copy()
+
+
+def get_authenticated_merchant(
+    credentials: HTTPAuthorizationCredentials = Depends(security),
+) -> dict:
+    """
+    # Extract the Bearer token supplied through Swagger or an API client.
+    # Bridge between the incoming HTTP request and your token-validation function.
+    # Depends(security) tells FastAPI to run the HTTPBearer() dependency you created earlier.
+    # HTTPBearer reads the Authorization header.
+    # HTTPAuthorizationCredentials contains the authentication scheme and token.
+    # Extract the token
+    """
+
+    token = credentials.credentials
+
+    return get_current_merchant(f"Bearer {token}")
