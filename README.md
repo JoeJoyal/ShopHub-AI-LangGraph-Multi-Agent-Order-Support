@@ -1,4 +1,4 @@
-# ShopHub --- Part I: Basic Order Support Architecture
+# 🛒 ShopHub - Part I: Basic Order Support Architecture
 
 ## 1. Overview
 
