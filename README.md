@@ -112,24 +112,24 @@ sequenceDiagram
 
 ### Demo identities
 
-  Token               User         Merchant       Role
-  ------------------- ------------ -------------- ------------------
-  `token-a-admin`     `user-001`   `merchant-a`   `merchant_admin`
-  `token-a-support`   `user-002`   `merchant-a`   `support_agent`
-  `token-a-viewer`    `user-003`   `merchant-a`   `viewer`
-  `token-b-manager`   `user-004`   `merchant-b`   `order_manager`
+  |Token               |User         |Merchant      | Role|
+  |------------------- |------------ |--------------| ------------------|
+  |`token-a-admin`     |`user-001`   |`merchant-a`  | `merchant_admin`|
+  |`token-a-support`   |`user-002`   |`merchant-a`  |`support_agent`|
+  |`token-a-viewer`    |`user-003`   |`merchant-a`  |`viewer`|
+  |`token-b-manager`   |`user-004`   |`merchant-b`  |`order_manager`|
 
 These are **demo tokens only**. Do not use hard-coded tokens in a
 production system.
 
 ### Permission matrix
 
-  Operation                  Merchant admin   Support agent   Viewer   Order manager
-  ------------------------ ---------------- --------------- -------- ---------------
-  Read/list orders                      Yes             Yes      Yes             Yes
-  Cancel eligible orders                Yes             Yes       No             Yes
-  Refund eligible orders                Yes              No       No             Yes
-  Manage staff                          Yes              No       No              No
+  |Operation|Merchant admin|Support agent|Viewer|Order manager|
+  |------------------------|----------------|---------------|--------|---------------|
+  |Read/list orders|Yes|Yes |Yes|Yes|
+  |Cancel eligible orders   |             Yes |            Yes |      No |            Yes|
+  |Refund eligible orders   |             Yes |             No |      No |            Yes|
+  |Manage staff             |             Yes |             No |      No |             No|
 
 The Store API is responsible for enforcing this matrix. A user must not
 gain additional permissions by asking the chat assistant to ignore
