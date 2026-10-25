@@ -31,7 +31,7 @@ app = FastAPI(
 )
 
 # ======================================
-# Configure Bearer authentication
+# 1. Configure Bearer authentication
 # ======================================
 security = HTTPBearer()
 
@@ -71,7 +71,7 @@ TOKENS = {
 }
 
 # =======================================
-# Define permissions for each role
+# 3. Define permissions for each role
 # =======================================
 ROLE_PERMISSIONS = {
     "merchant_admin": {
@@ -95,7 +95,7 @@ ROLE_PERMISSIONS = {
 }
 
 # =======================================
-# Create mock order data
+# 4. Create mock order data
 # =======================================
 """
 Data is stored in memory and resets when the API restarts.
@@ -129,7 +129,7 @@ ORDERS["ORD-1007"] = {
 }
 
 # =======================================
-# Define request model for order actions
+# 5. Define request model for order actions
 # =======================================
 """
 # OrderAction: the name of your request model.
@@ -140,7 +140,9 @@ class OrderAction(BaseModel):
     order_id: str = Field(min_length=1)
     reason: str = Field(min_length=3, max_length=200)
 
-
+# --------------------------------------------------
+# 6. Authenticate the user
+# --------------------------------------------------
 def get_current_merchant(authorization: Optional[str]) -> dict:
     """
     # Validate the demo Bearer token and return the caller identity.
@@ -203,7 +205,7 @@ def get_authenticated_merchant(
     return get_current_merchant(f"Bearer {token}")
 
 # ===================================
-# Role-Based Access Control (RBAC)
+# 7. Role-Based Access Control (RBAC)
 # ===================================
 def require_permission(identity: dict, permission: str) -> None:
     """
@@ -229,3 +231,182 @@ def require_permission(identity: dict, permission: str) -> None:
                 f"permission '{permission}'"
             ),
         )
+
+
+# --------------------------------------------------
+# 8. Find an order with tenant isolation
+# --------------------------------------------------
+
+def find_order(order_id: str, merchant_id: str) -> dict:
+    """
+    # Return an order only if it belongs to the authenticated merchant.
+    # Accept the order ID and merchant ID
+     - order_id: the order the user wants to access.
+     - merchant_id: the merchant ID associated with the authenticated user.
+    # Check whether the order belongs to the merchant. This condition checks two possibilities:
+     - The order does not exist.
+     - The order exists, but belongs to a different merchant.
+    # Return a 404 error
+    # Return the order if access is allowed
+    """
+
+    order = ORDERS.get(order_id)
+
+    # Return the same error for missing and foreign-merchant orders.
+    if order is None or order["merchant_id"] != merchant_id:
+        raise HTTPException(
+            status_code=404,
+            detail="Order not found",
+        )
+
+    return order
+
+
+# --------------------------------------------------
+# 9. Health check
+# --------------------------------------------------
+
+@app.get("/", tags=["Health"])
+def home():
+    return {
+        "message": "ShopHub Store API is running",
+        "docs": "/docs",
+    }
+
+# --------------------------------------------------
+# 10. Get the authenticated user's identity
+# --------------------------------------------------
+
+@app.get("/auth/me", tags=["Authentication"])
+def auth_me(
+    identity: dict = Depends(get_authenticated_merchant),
+):
+    return {
+        "user_id": identity["user_id"],
+        "merchant_id": identity["merchant_id"],
+        "role": identity["role"],
+        "permissions": sorted(
+            ROLE_PERMISSIONS.get(identity["role"], set())
+        ),
+    }
+
+# --------------------------------------------------
+# 11. List orders belonging to the current merchant
+# --------------------------------------------------
+
+@app.get("/orders", tags=["Orders"])
+def list_orders(
+    status: Optional[str] = None,
+    identity: dict = Depends(get_authenticated_merchant),
+):
+    require_permission(identity, "orders:read")
+
+    merchant_id = identity["merchant_id"]
+
+    results = [
+        order.copy()
+        for order in ORDERS.values()
+        if order["merchant_id"] == merchant_id
+        and (status is None or order["status"] == status)
+    ]
+
+    return {
+        "merchant_id": merchant_id,
+        "count": len(results),
+        "orders": results,
+    }
+
+# --------------------------------------------------
+# 12. Look up a single order
+# --------------------------------------------------
+
+@app.get("/orders/lookup", tags=["Orders"])
+def lookup_order(
+    id: str,
+    identity: dict = Depends(get_authenticated_merchant),
+):
+    require_permission(identity, "orders:read")
+
+    order = find_order(
+        order_id=id,
+        merchant_id=identity["merchant_id"],
+    )
+
+    return {
+        "order": order.copy(),
+    }
+
+
+# --------------------------------------------------
+# 13. Cancel an order
+# --------------------------------------------------
+
+@app.post("/orders/cancel", tags=["Order Actions"])
+def cancel_order(
+    action: OrderAction,
+    identity: dict = Depends(get_authenticated_merchant),
+):
+    require_permission(identity, "orders:cancel")
+
+    order = find_order(
+        order_id=action.order_id,
+        merchant_id=identity["merchant_id"],
+    )
+
+    # Only processing orders can be cancelled.
+    if order["status"] != "processing":
+        raise HTTPException(
+            status_code=409,
+            detail="Only processing orders can be cancelled",
+        )
+
+    order["status"] = "cancelled"
+
+    return {
+        "message": "Order cancelled in demo store",
+        "order_id": order["order_id"],
+        "status": order["status"],
+        "reason": action.reason,
+    }
+
+# --------------------------------------------------
+# 14. Simulate a refund
+# --------------------------------------------------
+
+@app.post("/orders/refund", tags=["Order Actions"])
+def refund_order(
+    action: OrderAction,
+    identity: dict = Depends(get_authenticated_merchant),
+):
+    require_permission(identity, "orders:refund")
+
+    order = find_order(
+        order_id=action.order_id,
+        merchant_id=identity["merchant_id"],
+    )
+
+    if order["status"] == "refunded":
+        raise HTTPException(
+            status_code=409,
+            detail="Order is already refunded",
+        )
+
+    # Only delivered orders can be refunded.
+    if order["status"] != "delivered":
+        raise HTTPException(
+            status_code=409,
+            detail="Only delivered orders can be refunded",
+        )
+
+    # This changes mock order data only; it does not move real money.
+    order["status"] = "refunded"
+
+    return {
+        "message": (
+            "Refund simulated successfully; "
+            "no real payment was made"
+        ),
+        "order_id": order["order_id"],
+        "status": order["status"],
+        "reason": action.reason,
+    }
