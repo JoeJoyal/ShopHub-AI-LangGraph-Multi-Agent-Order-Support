@@ -184,12 +184,13 @@ def get_current_merchant(authorization: Optional[str]) -> dict:
     # Return a copy so callers cannot modify the token dictionary.
     return identity.copy()
 
-
+# ====================================================================
+# Extract the Bearer token supplied through Swagger or an API client.
+# ====================================================================
 def get_authenticated_merchant(
     credentials: HTTPAuthorizationCredentials = Depends(security),
 ) -> dict:
     """
-    # Extract the Bearer token supplied through Swagger or an API client.
     # Bridge between the incoming HTTP request and your token-validation function.
     # Depends(security) tells FastAPI to run the HTTPBearer() dependency you created earlier.
     # HTTPBearer reads the Authorization header.
@@ -200,3 +201,31 @@ def get_authenticated_merchant(
     token = credentials.credentials
 
     return get_current_merchant(f"Bearer {token}")
+
+# ===================================
+# Role-Based Access Control (RBAC)
+# ===================================
+def require_permission(identity: dict, permission: str) -> None:
+    """
+    # Reject the request if the user's role lacks the permission.
+    # Accept the user identify and required permission
+     - identity: the authenticated user's details.
+     - permission: the action the user wants to perform.
+    # Get the user's role
+    # Check the role's permissions
+     - ROLE_PERMISSIONS.get(role, set()) retrieves the permissions for that role.
+     - If the role is unknown, it returns an empty set.
+     - permission not in ... checks whether the requested permission is missing.
+    # Reject unauthorized requests
+    """
+
+    role = identity.get("role")
+
+    if permission not in ROLE_PERMISSIONS.get(role, set()):
+        raise HTTPException(
+            status_code=403,
+            detail=(
+                f"Role '{role}' does not have "
+                f"permission '{permission}'"
+            ),
+        )
